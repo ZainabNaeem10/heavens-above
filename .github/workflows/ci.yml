@@ -95,7 +95,7 @@ jobs:
             Write-Host "Detected $count collected item(s). Proceeding to run tests."
           }
 
-            - name: Run tests (pytest) and collect coverage
+      - name: Run tests (pytest) and collect coverage
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path reports -Force | Out-Null
