@@ -2,7 +2,7 @@
 const fs = require("fs");
 const request = require("request");
 //const cheerio = require("cheerio");
-const utils = require("../utils");
+const utils = require("./utils");
 const { getTable } = require("../<your-file-name>"); // replace with actual filename
 
 jest.mock("fs");
