@@ -12,8 +12,9 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     env:
-      # Replace this with your top-level package/module name for accurate coverage, or leave as '.' to cover repository files
-      PACKAGE_NAME: "your_package"
+      # Default to repository root for coverage (good for simple projects without a Python package).
+      # If your project is a package, set this to the package name, e.g. "my_project".
+      PACKAGE_NAME: "."
 
     steps:
       - name: Checkout repository
@@ -24,7 +25,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install dependencies and CI tools
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
@@ -33,13 +34,14 @@ jobs:
           } else {
             Write-Host "No requirements.txt found"
           }
-          # Ensure test & lint tooling exists
+
+          # Ensure CI tooling present
           pip install --upgrade pytest pytest-cov flake8 bandit
 
-          # If repo is a package, install editable to make it importable by tests
+          # If this repo is a proper package (setup.py or pyproject.toml), install it editable
           if (Test-Path -Path "setup.py" -PathType Leaf -or Test-Path -Path "pyproject.toml") {
-            Write-Host "Installing project in editable mode (pip install -e .)"
-            pip install -e . || Write-Host "Editable install failed or not a package; continuing"
+            Write-Host "Installing project in editable mode to make imports available for tests..."
+            pip install -e . || Write-Host "pip install -e . failed or not a package; continuing"
           }
 
       - name: Lint (flake8)
@@ -64,7 +66,6 @@ jobs:
             pip install bandit
           }
           New-Item -ItemType Directory -Path reports -Force | Out-Null
-          # Allow non-zero bandit exit but keep output
           bandit -r . -f json -o reports\bandit.json || Write-Host "Bandit completed with exit code $LASTEXITCODE"
 
       - name: Pytest collect-only (debug) and fail if no tests found
@@ -72,17 +73,23 @@ jobs:
         run: |
           New-Item -ItemType Directory -Path reports -Force | Out-Null
 
-          Write-Host "Running pytest --collect-only to see which tests are discovered..."
-          # Capture pytest collect-only output
+          Write-Host "Running pytest --collect-only to see discovered tests..."
           $collectOutput = pytest --collect-only -q 2>&1
+          # Save full collect output for debugging
           $collectOutput | Out-File -FilePath reports\pytest-collect.txt -Encoding utf8
 
-          # Count non-empty lines from collect-only output. Usually each test/nodeid appears on its own line.
+          # If pytest explicitly reports "collected 0 items", fail immediately
+          if ($collectOutput -match 'collected\s+0\s+items') {
+            Write-Error "No tests were discovered by pytest (collected 0 items). See reports\pytest-collect.txt for details. Failing the job."
+            exit 1
+          }
+
+          # Otherwise, attempt a rough count by extracting non-empty lines (often node ids)
           $lines = $collectOutput -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
           $count = $lines.Count
-          Write-Host "pytest collect-only lines (approx. discovered items): $count"
+          Write-Host "pytest collect-only: approx. discovered items: $count"
           if ($count -eq 0) {
-            Write-Error "No tests were discovered by pytest. See reports\pytest-collect.txt for details. Failing the job."
+            Write-Error "No tests discovered (no node lines). See reports\pytest-collect.txt for details. Failing the job."
             exit 1
           } else {
             Write-Host "Detected $count collected item(s). Proceeding to run tests."
@@ -93,11 +100,10 @@ jobs:
         run: |
           New-Item -ItemType Directory -Path reports -Force | Out-Null
 
-          # Use PACKAGE_NAME env var for coverage; default to ./ if left unchanged
-          $covTarget = if ($env:PACKAGE_NAME -and $env:PACKAGE_NAME -ne "your_package") { $env:PACKAGE_NAME } else { "./" }
+          $covTarget = $env:PACKAGE_NAME
           Write-Host "Running pytest and collecting coverage for: $covTarget"
 
-          # Run pytest and generate junit + coverage xml. If pytest returns non-zero, the step will fail (intended).
+          # Run tests and generate junit + coverage xml. This step will fail if tests fail.
           pytest --junitxml=reports\junit.xml --cov=$covTarget --cov-report=xml:reports\coverage.xml
 
       - name: Upload reports (always)
