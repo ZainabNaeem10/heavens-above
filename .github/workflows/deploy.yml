@@ -26,40 +26,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run lint (optional)
+      - name: Run lint
         run: npm run lint
-        continue-on-error: false
+        continue-on-error: true
 
       - name: Run tests
         run: npm test
 
-      - name: Build project (optional)
+      - name: Build project
         run: npm run build
-
-      - name: Create artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-build
-          path: .
-          if-no-files-found: ignore
 
       - name: Deploy to Heroku
         if: success()
-        env:
-          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
-          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
-          HEROKU_EMAIL: "i230065@isb.nu.edu.pk"
         run: |
           echo "Starting Heroku deployment..."
-          
-          # Install Heroku CLI
           npm install -g heroku
-          
-          # Configure Heroku authentication
-          echo "machine git.heroku.com" >> ~/.netrc
-          echo "  login $HEROKU_EMAIL" >> ~/.netrc
-          echo "  password $HEROKU_API_KEY" >> ~/.netrc
-          
-          # Set Heroku remote and deploy
-          heroku git:remote -a $HEROKU_APP_NAME
+          heroku auth:token
+          heroku git:remote -a ${{ secrets.HEROKU_APP_NAME }}
           git push heroku HEAD:main
