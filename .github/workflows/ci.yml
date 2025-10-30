@@ -7,10 +7,11 @@ on:
     branches: ["main"]
 
 jobs:
- test-and-lint-windows:
+  test-and-lint-windows:
     name: Test, Lint & Coverage (Windows)
     runs-on: windows-latest
     timeout-minutes: 30
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,47 +24,47 @@ jobs:
       - name: Cache pip
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pip
+          path: ~\AppData\Local\pip\Cache
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
       - name: Install dependencies
         run: |
-          if [ -f "requirements.txt" ]; then
-            python -m pip install --upgrade pip
+          python -m pip install --upgrade pip
+          if (Test-Path "requirements.txt") {
             pip install -r requirements.txt
-          elif [ -f "pyproject.toml" ]; then
+          } elseif (Test-Path "pyproject.toml") {
             pip install build
             pip install .
-          else
-            echo "No requirements.txt or pyproject.toml found — adjust CI."
-          fi
+          } else {
+            Write-Host "No requirements.txt or pyproject.toml found — adjust CI."
+          }
 
       - name: Lint (flake8)
         run: |
-          if command -v flake8 >/dev/null 2>&1; then
-            flake8 || true
-          else
-            echo "flake8 not installed; skipping (add flake8 to dev deps)."
-          fi
+          if (Get-Command flake8 -ErrorAction SilentlyContinue) {
+            flake8
+          } else {
+            Write-Host "flake8 not installed; skipping lint (add to dev dependencies)."
+          }
 
       - name: Static security scan (bandit)
         run: |
-          if command -v bandit >/dev/null 2>&1; then
-            bandit -r . -f simple || true
-          else
-            echo "bandit not installed; skipping (add bandit to dev deps)."
-          fi
+          if (Get-Command bandit -ErrorAction SilentlyContinue) {
+            bandit -r . -f simple
+          } else {
+            Write-Host "bandit not installed; skipping security scan (add to dev dependencies)."
+          }
 
       - name: Run tests (pytest) and collect coverage
         run: |
-          mkdir -p reports
-          if command -v pytest >/dev/null 2>&1; then
-            pytest --junitxml=reports/junit.xml --cov=./ --cov-report=xml:reports/coverage.xml || true
-          else
-            echo "pytest not installed; skipping tests (add pytest to dev deps)."
-          fi
+          if (-not (Test-Path "reports")) { New-Item -ItemType Directory -Path "reports" | Out-Null }
+          if (Get-Command pytest -ErrorAction SilentlyContinue) {
+            pytest --junitxml=reports/junit.xml --cov=./ --cov-report=xml:reports/coverage.xml
+          } else {
+            Write-Host "pytest not installed; skipping tests (add to dev dependencies)."
+          }
 
       - name: Upload test reports & coverage
         uses: actions/upload-artifact@v4
@@ -73,4 +74,4 @@ jobs:
 
       - name: Show brief results
         run: |
-          echo "Artifacts uploaded: reports/"
+          Write-Host "Artifacts uploaded: reports/"
