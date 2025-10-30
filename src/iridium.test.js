@@ -1,7 +1,7 @@
 // __tests__/iridium.test.js
 const fs = require("fs");
 const request = require("request");
-const cheerio = require("cheerio");
+//const cheerio = require("cheerio");
 const utils = require("../utils");
 const { getTable } = require("../<your-file-name>"); // replace with actual filename
 

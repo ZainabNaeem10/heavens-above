@@ -143,7 +143,7 @@ function getTable(config) {
 						return ele;
 					});
 				}
-				database = database.map((ele, index) => {
+				database = database.map(ele => {
 					if (isNaN(ele[property[6]][1])) {
 						ele[property[8]] = 0;
 						return ele;
