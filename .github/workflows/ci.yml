@@ -1,15 +1,16 @@
-name: CI
+name: CI (Windows)
 
 on:
   push:
     branches: ["main"]
   pull_request:
     branches: ["main"]
+  workflow_dispatch:
 
 jobs:
-  test-and-lint:
-    name: Test, Lint & Coverage
-    runs-on: ubuntu-latest
+  test-and-lint-windows:
+    name: Test, Lint & Coverage (Windows)
+    runs-on: windows-latest
     timeout-minutes: 30
 
     steps:
@@ -21,46 +22,47 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
       - name: Install dependencies
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip
-          if [ -f "requirements.txt" ]; then pip install -r requirements.txt; fi
+          if (Test-Path -Path "requirements.txt") {
+            pip install -r requirements.txt
+          } else {
+            Write-Host "No requirements.txt found; installing dev-tools"
+            pip install pytest pytest-cov flake8 bandit
+          }
 
       - name: Lint (flake8)
+        shell: pwsh
         run: |
-          if python -c "import pkgutil, sys; print(pkgutil.find_loader('flake8'))" | grep -q "None"; then
-            echo "flake8 not installed; skipping lint (add to dev deps)"
-          else
-            flake8 || true
-          fi
+          if (-not (Get-Command flake8 -ErrorAction SilentlyContinue)) {
+            Write-Host "flake8 not found; installing..."
+            pip install flake8
+          }
+          flake8   # <-- Will exit non-zero on lint errors and fail the job
 
       - name: Security scan (bandit)
+        shell: pwsh
         run: |
-          if python -c "import pkgutil; print(pkgutil.find_loader('bandit'))" | grep -q "None"; then
-            echo "bandit not installed; skipping"
-          else
-            bandit -r . -f json -o reports/bandit.json || true
-          fi
+          if (-not (Get-Command bandit -ErrorAction SilentlyContinue)) {
+            pip install bandit
+          }
+          New-Item -ItemType Directory -Path reports -Force | Out-Null
+          bandit -r . -f json -o reports\bandit.json
+          # bandit may exit non-zero on issues; adjust if you want non-failing scan
 
       - name: Run tests (pytest) and collect coverage
+        shell: pwsh
         run: |
-          mkdir -p reports
-          if python -c "import pkgutil; print(pkgutil.find_loader('pytest'))" | grep -q "None"; then
-            echo "pytest not installed; skipping tests"
-          else
-            pytest --junitxml=reports/junit.xml --cov=./ --cov-report=xml:reports/coverage.xml || true
-          fi
+          if (-not (Get-Command pytest -ErrorAction SilentlyContinue)) {
+            pip install pytest pytest-cov
+          }
+          New-Item -ItemType Directory -Path reports -Force | Out-Null
+          pytest --junitxml=reports\junit.xml --cov=./ --cov-report=xml:reports\coverage.xml
 
       - name: Upload reports
         uses: actions/upload-artifact@v4
         with:
-          name: ci-reports
+          name: ci-reports-windows
           path: reports/
