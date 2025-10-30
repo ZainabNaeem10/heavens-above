@@ -95,7 +95,7 @@ jobs:
             Write-Host "Detected $count collected item(s). Proceeding to run tests."
           }
 
-      - name: Run tests (pytest) and collect coverage
+            - name: Run tests (pytest) and collect coverage
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path reports -Force | Out-Null
@@ -103,8 +103,18 @@ jobs:
           $covTarget = $env:PACKAGE_NAME
           Write-Host "Running pytest and collecting coverage for: $covTarget"
 
-          # Run tests and generate junit + coverage xml. This step will fail if tests fail.
-          pytest --junitxml=reports\junit.xml --cov=$covTarget --cov-report=xml:reports\coverage.xml
+          # Capture full pytest output to file while still returning its exit code.
+          # The Start-Process approach preserves the pytest exit code.
+          $py = (Get-Command python).Source
+          $args = "-m pytest --junitxml=reports\junit.xml --cov=$covTarget --cov-report=xml:reports\coverage.xml"
+          Write-Host "Executing: $py $args"
+
+          $proc = Start-Process -FilePath $py -ArgumentList $args -NoNewWindow -PassThru -RedirectStandardOutput reports\pytest-output.txt -RedirectStandardError reports\pytest-output.txt -Wait
+          if ($proc.ExitCode -ne 0) {
+            Write-Host "pytest exited with code $($proc.ExitCode). See reports\pytest-output.txt and reports\junit.xml for details."
+            exit $proc.ExitCode
+          }
+
 
       - name: Upload reports (always)
         if: always()
