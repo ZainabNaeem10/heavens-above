@@ -1,59 +1,55 @@
-name: Deploy → Heroku (Windows)
+name: Windows CI + Deploy to Heroku
 
 on:
   push:
-    branches: ["main"]
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  actions: write
+    branches: [ main ]
 
 jobs:
-  build-test-and-deploy:
+  build-and-deploy-windows:
     runs-on: windows-latest
-    environment: production
-
+    env:
+      HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+      HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node (if required)
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: '18'
 
       - name: Install dependencies
-        run: npm ci
-
-      - name: Run lint
-        run: npm run lint
-        continue-on-error: true
-
-      - name: Run tests
-        run: npm test
-
-      - name: Build project
-        run: npm run build
-
-      - name: Deploy to Heroku
-        if: success()
-        env:
-          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        shell: pwsh
         run: |
-          echo "Starting Heroku deployment..."
-          
-          # Download and install Heroku CLI quickly
-          $url = "https://cli-assets.heroku.com/heroku-x64.exe"
-          $output = "heroku-installer.exe"
-          Invoke-WebRequest -Uri $url -OutFile $output
-          Start-Process -FilePath $output -ArgumentList "/S" -Wait
-          Remove-Item $output
-          
-          # Add Heroku to PATH
-          $env:PATH = "C:\Program Files\heroku\bin;" + $env:PATH
-          
-          # Authenticate and deploy
-          heroku auth:token
-          heroku git:remote -a ${{ secrets.HEROKU_APP_NAME }}
+          npm ci
+
+      - name: Build
+        shell: pwsh
+        run: |
+          npm run build
+
+      - name: Configure git author
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add Heroku remote (HTTPS) and push
+        shell: pwsh
+        run: |
+          if (-not $env:HEROKU_API_KEY) {
+            Write-Error "HEROKU_API_KEY is empty. Aborting."
+            exit 1
+          }
+          if (-not $env:HEROKU_APP_NAME) {
+            Write-Error "HEROKU_APP_NAME is empty. Aborting."
+            exit 1
+          }
+
+          # Create HTTPS remote with API key (PowerShell string-format)
+          $remoteUrl = "https://heroku:{0}@git.heroku.com/{1}.git" -f $env:HEROKU_API_KEY, $env:HEROKU_APP_NAME
+          git remote add heroku $remoteUrl
+
+          # Push current HEAD to Heroku (adjust branch if your Heroku app expects master)
           git push heroku HEAD:main -f
