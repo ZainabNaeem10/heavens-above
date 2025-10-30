@@ -3,7 +3,7 @@ const fs = require("fs");
 const request = require("request");
 //const cheerio = require("cheerio");
 const utils = require("./utils");
-const { getTable } = require("../<your-file-name>"); // replace with actual filename
+const { getTable } = require("./iridium.js");
 
 jest.mock("fs");
 jest.mock("request");
