@@ -1,55 +1,45 @@
-name: Windows CI + Deploy to Heroku
+name: Deploy to Vercel
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
-  build-and-deploy-windows:
+  deploy:
     runs-on: windows-latest
-    env:
-      HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
-      HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
+
     steps:
+      # Checkout code
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
-      - name: Setup Node (if required)
-        uses: actions/setup-node@v4
+      # Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: 22
 
+      # Build stage
       - name: Install dependencies
-        shell: pwsh
-        run: |
-          npm ci
+        run: npm install
+        shell: powershell
 
-      - name: Build
-        shell: pwsh
-        run: |
-          npm run build
+      - name: Build project
+        run: npm run build
+        shell: powershell
 
-      - name: Configure git author
-        shell: pwsh
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+      #  Test stage
+      - name: Run tests
+        run: npm test
+        shell: powershell
 
-      - name: Add Heroku remote (HTTPS) and push
-        shell: pwsh
-        run: |
-          if (-not $env:HEROKU_API_KEY) {
-            Write-Error "HEROKU_API_KEY is empty. Aborting."
-            exit 1
-          }
-          if (-not $env:HEROKU_APP_NAME) {
-            Write-Error "HEROKU_APP_NAME is empty. Aborting."
-            exit 1
-          }
-
-          # Create HTTPS remote with API key (PowerShell string-format)
-          $remoteUrl = "https://heroku:{0}@git.heroku.com/{1}.git" -f $env:HEROKU_API_KEY, $env:HEROKU_APP_NAME
-          git remote add heroku $remoteUrl
-
-          # Push current HEAD to Heroku (adjust branch if your Heroku app expects master)
-          git push heroku HEAD:main -f
+      # Deploy stage
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v23
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
