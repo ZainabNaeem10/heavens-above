@@ -38,9 +38,22 @@ jobs:
 
       - name: Deploy to Heroku
         if: success()
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         run: |
           echo "Starting Heroku deployment..."
-          npm install -g heroku
+          
+          # Download and install Heroku CLI quickly
+          $url = "https://cli-assets.heroku.com/heroku-x64.exe"
+          $output = "heroku-installer.exe"
+          Invoke-WebRequest -Uri $url -OutFile $output
+          Start-Process -FilePath $output -ArgumentList "/S" -Wait
+          Remove-Item $output
+          
+          # Add Heroku to PATH
+          $env:PATH = "C:\Program Files\heroku\bin;" + $env:PATH
+          
+          # Authenticate and deploy
           heroku auth:token
           heroku git:remote -a ${{ secrets.HEROKU_APP_NAME }}
-          git push heroku HEAD:main
+          git push heroku HEAD:main -f
