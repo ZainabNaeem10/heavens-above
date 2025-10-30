@@ -1,0 +1,56 @@
+name: Deploy → Heroku (Windows)
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  build-test-and-deploy:
+    runs-on: windows-latest
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint (optional)
+        run: npm run lint
+        continue-on-error: false
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build project (optional)
+        run: npm run build
+
+      - name: Create artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-build
+          path: .
+          if-no-files-found: ignore
+
+      - name: Deploy to Heroku
+        if: success()
+        run: |
+          echo "Starting Heroku deployment..."
+          npm install -g heroku
+          heroku plugins:install @heroku-cli/plugin-buildpacks
+          heroku git:remote -a $env:HEROKU_APP_NAME
+          git push https://heroku:${{ secrets.HEROKU_API_KEY }}@git.heroku.com/${{ secrets.HEROKU_APP_NAME }}.git HEAD:main
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
