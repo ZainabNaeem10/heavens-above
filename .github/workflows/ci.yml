@@ -1,0 +1,124 @@
+name: CI (Windows)
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test-and-lint-windows:
+    name: Test, Lint & Coverage (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      # Default to repository root for coverage (good for simple projects without a Python package).
+      # If your project is a package, set this to the package name, e.g. "my_project".
+      PACKAGE_NAME: "."
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies and CI tools
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          if (Test-Path -Path "requirements.txt") {
+            pip install -r requirements.txt
+          } else {
+            Write-Host "No requirements.txt found"
+          }
+
+          # Ensure CI tooling present
+          pip install --upgrade pytest pytest-cov flake8 bandit
+
+          # If this repo is a proper package (setup.py or pyproject.toml), install it editable
+          if ( (Test-Path -Path "setup.py" -PathType Leaf) -or (Test-Path -Path "pyproject.toml" -PathType Leaf) ) {
+            Write-Host "Installing project in editable mode to make imports available for tests..."
+            pip install -e . || Write-Host "pip install -e . failed or not a package; continuing"
+          }
+
+      - name: Lint (flake8)
+        shell: pwsh
+        run: |
+          if (Get-Command flake8 -ErrorAction SilentlyContinue) {
+            Write-Host "Running flake8..."
+            flake8
+          } else {
+            Write-Host "flake8 not found; installing..."
+            pip install flake8
+            flake8
+          }
+
+      - name: Security scan (bandit)
+        shell: pwsh
+        run: |
+          if (Get-Command bandit -ErrorAction SilentlyContinue) {
+            Write-Host "Running bandit..."
+          } else {
+            Write-Host "bandit not found; installing..."
+            pip install bandit
+          }
+          New-Item -ItemType Directory -Path reports -Force | Out-Null
+          bandit -r . -f json -o reports\bandit.json || Write-Host "Bandit completed with exit code $LASTEXITCODE"
+
+      - name: Pytest collect-only (debug) and fail if no tests found
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path reports -Force | Out-Null
+
+          Write-Host "Running pytest --collect-only to see discovered tests..."
+          $collectOutput = pytest --collect-only -q 2>&1
+          # Save full collect output for debugging
+          $collectOutput | Out-File -FilePath reports\pytest-collect.txt -Encoding utf8
+
+          # If pytest explicitly reports "collected 0 items", fail immediately
+          if ($collectOutput -match 'collected\s+0\s+items') {
+            Write-Error "No tests were discovered by pytest (collected 0 items). See reports\pytest-collect.txt for details. Failing the job."
+            exit 1
+          }
+
+          # Otherwise, attempt a rough count by extracting non-empty lines (often node ids)
+          $lines = $collectOutput -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
+          $count = $lines.Count
+          Write-Host "pytest collect-only: approx. discovered items: $count"
+          if ($count -eq 0) {
+            Write-Error "No tests discovered (no node lines). See reports\pytest-collect.txt for details. Failing the job."
+            exit 1
+          } else {
+            Write-Host "Detected $count collected item(s). Proceeding to run tests."
+          }
+
+      - name: Run tests (pytest) and collect coverage
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path reports -Force | Out-Null
+
+          $covTarget = $env:PACKAGE_NAME
+          Write-Host "Running pytest and collecting coverage for: $covTarget"
+
+          # Capture full pytest output to file while still returning its exit code.
+          # The Start-Process approach preserves the pytest exit code.
+          $py = (Get-Command python).Source
+          $args = "-m pytest --junitxml=reports\junit.xml --cov=$covTarget --cov-report=xml:reports\coverage.xml"
+          Write-Host "Executing: $py $args"
+
+          $proc = Start-Process -FilePath $py -ArgumentList $args -NoNewWindow -PassThru -RedirectStandardOutput reports\pytest-output.txt -RedirectStandardError reports\pytest-output.txt -Wait
+          if ($proc.ExitCode -ne 0) {
+            Write-Host "pytest exited with code $($proc.ExitCode). See reports\pytest-output.txt and reports\junit.xml for details."
+            exit $proc.ExitCode
+          }
+
+
+      - name: Upload reports (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-reports-windows
+          path: reports/
