@@ -1,4 +1,4 @@
-name: CI
+name: Node.js CI
 
 on:
   push:
@@ -7,8 +7,8 @@ on:
     branches: ["main"]
 
 jobs:
-  test-and-lint-windows:
-    name: Test, Lint & Coverage (Windows)
+  build-test-lint:
+    name: Build, Test & Lint (Windows)
     runs-on: windows-latest
     timeout-minutes: 30
 
@@ -16,62 +16,43 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: "3.11"
+          node-version: "20"
 
-      - name: Cache pip
+      - name: Cache npm
         uses: actions/cache@v4
         with:
-          path: ~\AppData\Local\pip\Cache
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-pip-
+            ${{ runner.os }}-npm-
 
       - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
         run: |
-          python -m pip install --upgrade pip
-          if (Test-Path "requirements.txt") {
-            pip install -r requirements.txt
-          } elseif (Test-Path "pyproject.toml") {
-            pip install build
-            pip install .
+          if (Test-Path "node_modules/.bin/eslint") {
+            npx eslint src/
           } else {
-            Write-Host "No requirements.txt or pyproject.toml found — adjust CI."
+            Write-Host "eslint not installed; skipping lint."
           }
 
-      - name: Lint (flake8)
+      - name: Run tests
         run: |
-          if (Get-Command flake8 -ErrorAction SilentlyContinue) {
-            flake8
+          if (Test-Path "node_modules/.bin/jest") {
+            npx jest --ci --coverage --outputFile=reports/test-results.json --json
+          } elseif (Test-Path "node_modules/.bin/mocha") {
+            npx mocha "src/**/*.test.js"
           } else {
-            Write-Host "flake8 not installed; skipping lint (add to dev dependencies)."
+            Write-Host "No test runner found (add jest or mocha)."
           }
 
-      - name: Static security scan (bandit)
-        run: |
-          if (Get-Command bandit -ErrorAction SilentlyContinue) {
-            bandit -r . -f simple
-          } else {
-            Write-Host "bandit not installed; skipping security scan (add to dev dependencies)."
-          }
-
-      - name: Run tests (pytest) and collect coverage
-        run: |
-          if (-not (Test-Path "reports")) { New-Item -ItemType Directory -Path "reports" | Out-Null }
-          if (Get-Command pytest -ErrorAction SilentlyContinue) {
-            pytest --junitxml=reports/junit.xml --cov=./ --cov-report=xml:reports/coverage.xml
-          } else {
-            Write-Host "pytest not installed; skipping tests (add to dev dependencies)."
-          }
-
-      - name: Upload test reports & coverage
+      - name: Upload test reports
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: ci-reports
+          name: test-reports
           path: reports/
-
-      - name: Show brief results
-        run: |
-          Write-Host "Artifacts uploaded: reports/"
