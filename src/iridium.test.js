@@ -7,7 +7,7 @@ const { getTable } = require("../<your-file-name>"); // replace with actual file
 
 jest.mock("fs");
 jest.mock("request");
-jest.mock("../utils");
+jest.mock("./utils");
 
 // Mock HTML pages
 const mockMainPage = `
