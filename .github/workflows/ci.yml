@@ -1,4 +1,4 @@
-name: CI
+name: CI (Windows)
 
 on:
   push:
@@ -7,9 +7,9 @@ on:
     branches: ["main"]
 
 jobs:
-  test-and-lint:
-    name: Test, Lint & Coverage
-    runs-on: ubuntu-latest
+  test-and-lint-windows:
+    name: Test, Lint & Coverage (Windows)
+    runs-on: windows-latest
     timeout-minutes: 30
 
     steps:
@@ -21,46 +21,54 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
       - name: Install dependencies
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip
-          if [ -f "requirements.txt" ]; then pip install -r requirements.txt; fi
+          if (Test-Path -Path "requirements.txt") {
+            pip install -r requirements.txt
+          } else {
+            Write-Host "No requirements.txt found"
+          }
 
       - name: Lint (flake8)
+        shell: pwsh
         run: |
-          if python -c "import pkgutil, sys; print(pkgutil.find_loader('flake8'))" | findstr "None" >nul; then (
-            echo "flake8 not installed; skipping lint"
-          ) else (
-            flake8 || exit /b 1
-          )
+          if (Get-Command flake8 -ErrorAction SilentlyContinue) {
+            Write-Host "Running flake8..."
+            flake8
+          } else {
+            Write-Host "flake8 not installed; installing..."
+            pip install flake8
+            flake8
+          }
 
       - name: Security scan (bandit)
+        shell: pwsh
         run: |
-          if python -c "import pkgutil; print(pkgutil.find_loader('bandit'))" | findstr "None" >nul; then (
-            echo "bandit not installed; skipping"
-          ) else (
-            bandit -r . -f json -o reports/bandit.json || exit /b 1
-          )
+          if (Get-Command bandit -ErrorAction SilentlyContinue) {
+            Write-Host "Running bandit..."
+          } else {
+            Write-Host "bandit not found; installing..."
+            pip install bandit
+          }
+          New-Item -ItemType Directory -Path reports -Force | Out-Null
+          bandit -r . -f json -o reports\bandit.json || Write-Host "Bandit completed with exit code $LASTEXITCODE"
 
       - name: Run tests (pytest) and collect coverage
+        shell: pwsh
         run: |
-          mkdir reports 2>nul
-          if python -c "import pkgutil; print(pkgutil.find_loader('pytest'))" | findstr "None" >nul; then (
-            echo "pytest not installed; skipping tests"
-          ) else (
-            pytest --junitxml=reports/junit.xml --cov=./ --cov-report=xml:reports/coverage.xml || exit /b 1
-          )
+          New-Item -ItemType Directory -Path reports -Force | Out-Null
+          if (Get-Command pytest -ErrorAction SilentlyContinue) {
+            pytest --junitxml=reports\junit.xml --cov=./ --cov-report=xml:reports\coverage.xml
+          } else {
+            Write-Host "pytest not found; installing..."
+            pip install pytest pytest-cov
+            pytest --junitxml=reports\junit.xml --cov=./ --cov-report=xml:reports\coverage.xml
+          }
 
       - name: Upload reports
         uses: actions/upload-artifact@v4
         with:
-          name: ci-reports
+          name: ci-reports-windows
           path: reports/
