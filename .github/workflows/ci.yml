@@ -39,7 +39,7 @@ jobs:
           pip install --upgrade pytest pytest-cov flake8 bandit
 
           # If this repo is a proper package (setup.py or pyproject.toml), install it editable
-          if (Test-Path -Path "setup.py" -PathType Leaf -or Test-Path -Path "pyproject.toml") {
+          if ( (Test-Path -Path "setup.py" -PathType Leaf) -or (Test-Path -Path "pyproject.toml" -PathType Leaf) ) {
             Write-Host "Installing project in editable mode to make imports available for tests..."
             pip install -e . || Write-Host "pip install -e . failed or not a package; continuing"
           }
