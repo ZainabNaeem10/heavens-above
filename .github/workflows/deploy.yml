@@ -38,7 +38,7 @@ jobs:
       - name: Debug Vercel secrets
         run: |
           echo "Checking secrets..."
-          echo "VERCEL_TOKEN length: ${#{{ secrets.VERCEL_TOKEN }}}"
+          echo "VERCEL_TOKEN length: ${{{ secrets.VERCEL_TOKEN }}}"
           echo "VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}"
           echo "VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}"
         shell: bash
