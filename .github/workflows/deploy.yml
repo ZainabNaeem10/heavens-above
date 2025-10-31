@@ -2,9 +2,9 @@ name: Build-Test-Deploy to Vercel
 
 on:
   push:
-    branches: [main]                 # push to main -> production deploy
+    branches: [main] # push to main -> production deploy
   pull_request:
-    types: [opened, synchronize, reopened]  # PRs -> preview deploys
+    types: [opened, synchronize, reopened] # PRs -> preview deploys
 
 jobs:
   build-test-deploy:

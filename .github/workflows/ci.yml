@@ -43,7 +43,6 @@ jobs:
       - name: Create reports directory
         run: mkdir -p reports
 
-
       - name: Run tests
         run: |
           if (Test-Path "node_modules/.bin/jest") {

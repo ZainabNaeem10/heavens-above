@@ -17,18 +17,21 @@ export default [
         console: "readonly",
         process: "readonly",
         __dirname: "readonly",
-        __filename: "readonly"
-      }
+        __filename: "readonly",
+      },
     },
     rules: {
       "no-undef": "error",
-      "no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
-      "no-console": "off"
-    }
+      "no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+      "no-console": "off",
+    },
   },
 
   // Files in scripts/ should be parsed as ES modules
-   // Files in scripts/ should be parsed as ES modules
+  // Files in scripts/ should be parsed as ES modules
   {
     files: ["scripts/**"],
     languageOptions: {
@@ -36,14 +39,13 @@ export default [
       sourceType: "module",
       globals: {
         console: "readonly",
-        process: "readonly"
-      }
+        process: "readonly",
+      },
     },
     rules: {
-      "no-undef": "error"
-    }
+      "no-undef": "error",
+    },
   },
-
 
   // Test files: provide Jest globals
   {
@@ -58,11 +60,11 @@ export default [
         test: "readonly",
         expect: "readonly",
         beforeEach: "readonly",
-        afterEach: "readonly"
-      }
+        afterEach: "readonly",
+      },
     },
     rules: {
-      "no-undef": "off"
-    }
-  }
+      "no-undef": "off",
+    },
+  },
 ];

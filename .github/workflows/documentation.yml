@@ -1,0 +1,48 @@
+name: Docs
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**"
+      - ".github/workflows/documentation.yml"
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy-docs:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: |
+          npm install
+
+      # If you use JSDoc or another docs generator
+      - name: Generate documentation
+        run: |
+          if (Test-Path "package.json") {
+            if ((Get-Content package.json) -match '"docs"') {
+              npm run docs
+            } elseif (Test-Path "docs") {
+              if (-Not (Test-Path "site")) { New-Item -ItemType Directory -Path "site" | Out-Null }
+              Copy-Item -Path docs\* -Destination site -Recurse -Force
+              echo "Copied docs/ to site/ (no docs script found)."
+            } else {
+              echo "No docs found; create docs/ or add docs script to package.json."
+            }
+          }
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site

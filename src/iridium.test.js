@@ -58,21 +58,29 @@ describe("getTable()", () => {
     fs.existsSync.mockReturnValue(false);
     fs.mkdir.mockImplementation((_, cb) => cb(null));
     fs.appendFile.mockImplementation((_, __, cb) => cb(null));
-    fs.createWriteStream.mockReturnValue({ on: jest.fn().mockReturnThis(), pipe: jest.fn() });
+    fs.createWriteStream.mockReturnValue({
+      on: jest.fn().mockReturnThis(),
+      pipe: jest.fn(),
+    });
 
     // Mock request behavior
     request.mockImplementation((options, cb) => {
-      if (options.url.includes("mock-url")) cb(null, { statusCode: 200 }, mockMainPage);
-      else if (options.url.includes("mock-detail")) cb(null, { statusCode: 200 }, mockDetailPage);
+      if (options.url.includes("mock-url"))
+        cb(null, { statusCode: 200 }, mockMainPage);
+      else if (options.url.includes("mock-detail"))
+        cb(null, { statusCode: 200 }, mockDetailPage);
     });
-    request.get = jest.fn(() => ({ pipe: jest.fn().mockReturnThis(), on: jest.fn() }));
+    request.get = jest.fn(() => ({
+      pipe: jest.fn().mockReturnThis(),
+      on: jest.fn(),
+    }));
 
     const config = {
       root: "./",
       pages: 0,
       database: [],
       counter: 0,
-      count: 1
+      count: 1,
     };
 
     getTable(config);
@@ -90,13 +98,15 @@ describe("getTable()", () => {
   test("should skip processing when request fails", (done) => {
     utils.get_options.mockReturnValue({ url: "https://mock-url.com" });
     fs.existsSync.mockReturnValue(true);
-    request.mockImplementation((_, cb) => cb(new Error("Network error"), {}, null));
+    request.mockImplementation((_, cb) =>
+      cb(new Error("Network error"), {}, null)
+    );
 
     const config = {
       root: "./",
       pages: 0,
       database: [],
-      counter: 0
+      counter: 0,
     };
 
     getTable(config);
