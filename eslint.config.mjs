@@ -6,6 +6,7 @@ export default [
     // General settings for your source files
     files: ["**/*.js"],
     languageOptions: {
+      sourceType: "module",
       ecmaVersion: 2021,
       sourceType: "commonjs",        // important for require/module.exports
       globals: {
