@@ -28,10 +28,10 @@ jobs:
 
       - name: Run maintenance script
         run: |
-          if (Test-Path "scripts/maintenance.js") {
-            node scripts/maintenance.js | Out-File -FilePath backup-log.txt -Encoding utf8
+          if (Test-Path "scripts/scheduled-tasks.js") {
+            node scripts/scheduled-tasks.js | Out-File -FilePath backup-log.txt -Encoding utf8
           } else {
-            "No maintenance script found. Create scripts/maintenance.js to perform tasks." | Out-File -FilePath backup-log.txt -Encoding utf8
+            "No scheduled-tasks script found. Create scripts/scheduled-tasks.js to perform tasks." | Out-File -FilePath backup-log.txt -Encoding utf8
           }
 
       - name: Upload backup log
