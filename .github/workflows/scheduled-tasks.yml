@@ -1,122 +1,41 @@
-name: Scheduled Tasks (Windows) - PKT timezone
+name: Scheduled Maintenance
 
 on:
   schedule:
-    - cron: '0 21 * * *'   # daily at 02:00 PKT
-    - cron: '0 23 * * 6'   # weekly Sunday at 04:00 PKT
-  workflow_dispatch: {}
+    - cron: '0 2 * * *'  # Runs daily at 2 AM UTC
+  workflow_dispatch:
 
 jobs:
-  scheduled-maintenance-windows:
+  daily-tasks:
     runs-on: windows-latest
-    timeout-minutes: 90
-    env:
-      TZ: 'Asia/Karachi'
 
     steps:
-      # 1. Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Optional Node.js setup
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
 
-      # 3. Install dependencies if package.json exists
       - name: Install dependencies
-        shell: powershell
         run: |
-          if (Test-Path "package.json") {
-              Write-Host "package.json found — installing dependencies..."
-              npm ci
+          if (Test-Path "package-lock.json") {
+            npm ci
           } else {
-              Write-Host "No package.json found — skipping npm install"
+            npm install
           }
 
-      # 4. Prepare logs folder
-      - name: Prepare logs folder
-        shell: powershell
+      - name: Run maintenance script
         run: |
-          $logsDir = "$PSScriptRoot\logs"
-          if (-not (Test-Path $logsDir)) { New-Item -ItemType Directory -Path $logsDir | Out-Null }
-          "$((Get-Date).ToUniversalTime().ToString('u')) - Scheduled run started (PKT)" | Out-File "$logsDir\scheduled-run.log" -Encoding utf8 -Append
-
-      # 5. Run maintenance script
-      - name: Run Windows maintenance script
-        id: run_maintenance
-        shell: powershell
-        run: |
-          $logsDir = "$PSScriptRoot\logs"
-          $logFile = "$logsDir\scheduled-run.log"
-
-          if (Test-Path ".\scripts\maintenance.ps1") {
-              Write-Host "Found maintenance.ps1 — executing..."
-              try {
-                  & powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\maintenance.ps1" *>> $logFile
-                  Write-Host "Maintenance script completed."
-              } catch {
-                  Write-Host "Maintenance script failed: $_"
-                  throw $_
-              }
+          if (Test-Path "scripts/maintenance.js") {
+            node scripts/maintenance.js | Out-File -FilePath backup-log.txt -Encoding utf8
           } else {
-              Write-Host "No maintenance.ps1 found — running placeholder tasks..."
-              "### Placeholder tasks output" | Out-File $logFile -Append
-              Get-ChildItem -Force | Out-File $logFile -Append
-              Get-PSDrive | Out-File $logFile -Append
+            "No maintenance script found. Create scripts/maintenance.js to perform tasks." | Out-File -FilePath backup-log.txt -Encoding utf8
           }
 
-          "$((Get-Date).ToUniversalTime().ToString('u')) - Scheduled run finished (PKT)" | Out-File $logFile -Append
-
-      # 6. Upload logs as artifact
-      - name: Upload logs artifact
-        if: ${{ always() }}
+      - name: Upload backup log
         uses: actions/upload-artifact@v4
         with:
-          name: scheduled-logs-${{ github.run_id }}
-          path: logs
-
-      # 7. Notify Slack on success (optional)
-      - name: Notify Slack
-        shell: powershell
-        run: |
-          if ($env:SLACK_WEBHOOK) {
-              $repo = "${{ github.repository }}"
-              $runNum = "${{ github.run_number }}"
-              $runUrl = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-              $payload = @{
-                  text = ":white_check_mark: Scheduled job completed"
-                  attachments = @(
-                      @{
-                          color = "good"
-                          fields = @(
-                              @{ title = "Repository"; value = $repo; short = $true },
-                              @{ title = "Run"; value = $runNum; short = $true },
-                              @{ title = "Run URL"; value = $runUrl; short = $false }
-                          )
-                      }
-                  )
-              } | ConvertTo-Json -Depth 6
-              Invoke-RestMethod -Uri $env:SLACK_WEBHOOK -Method Post -ContentType 'application/json' -Body $payload
-          } else {
-              Write-Host "SLACK_WEBHOOK not set — skipping notification"
-          }
-        env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-
-      # 8. Create GitHub issue on failure
-      - name: Create GitHub Issue on failure
-        if: ${{ failure() }}
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const title = `Scheduled task failed: ${process.env.GITHUB_REPOSITORY} (run #${process.env.GITHUB_RUN_NUMBER})`;
-            const body = `A scheduled run failed. View run logs: ${process.env.GITHUB_RUN_URL}\n\nArtifacts: scheduled-logs-${process.env.GITHUB_RUN_ID}`;
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title,
-              body
-            })
+          name: daily-maintenance-log
+          path: backup-log.txt
