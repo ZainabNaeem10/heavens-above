@@ -17,7 +17,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'  # Use your preferred Node version
+          node-version: '20'
 
       # Step 3: Get tag name
       - name: Get tag
@@ -29,16 +29,14 @@ jobs:
         id: notes
         shell: pwsh
         run: |
-         "## Release $env:TAG" | Out-File -FilePath release-notes.md -Encoding utf8
-         "" | Out-File -FilePath release-notes.md -Append
-         "Released on: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') UTC" | Out-File -FilePath release-notes.md -Append
-         "" | Out-File -FilePath release-notes.md -Append
-         "Changes:" | Out-File -FilePath release-notes.md -Append
-         git log --pretty=format:"- %s (%an)" $env:TAG^..$env:TAG | Out-File -FilePath release-notes.md -Append
+          "## Release $env:TAG" | Out-File -FilePath release-notes.md -Encoding utf8
+          "" | Out-File -FilePath release-notes.md -Append
+          "Released on: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') UTC" | Out-File -FilePath release-notes.md -Append
+          "" | Out-File -FilePath release-notes.md -Append
+          "Changes:" | Out-File -FilePath release-notes.md -Append
 
-      # Safe commit log for GitHub Actions (works even for first commit)
-        git log --pretty=format:"- %s (%an)" $env:TAG | Out-File -FilePath release-notes.md -Append
-
+          # Safe commit log: works even for first commit
+          git log --pretty=format:"- %s (%an)" $env:TAG | Out-File -FilePath release-notes.md -Append
 
       # Step 5: Create GitHub Release
       - name: Create GitHub Release
