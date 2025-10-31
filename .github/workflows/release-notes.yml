@@ -8,23 +8,28 @@ on:
 jobs:
   release-notes:
     runs-on: windows-latest
+
     steps:
-      # Step 1: Checkout the repository
+      # Step 1: Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Set up Node.js (for .js projects)
+      # Step 2: Set up Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      # Step 3: Get tag name
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        run: npm install
+
+      # Step 4: Get tag name (Windows & cross-platform safe)
       - name: Get tag
         id: tag
-        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $env:GITHUB_ENV
+        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
-      # Step 4: Generate simple release notes
+      # Step 5: Generate release notes
       - name: Generate release notes
         id: notes
         shell: pwsh
@@ -35,10 +40,10 @@ jobs:
           "" | Out-File -FilePath release-notes.md -Append
           "Changes:" | Out-File -FilePath release-notes.md -Append
 
-          # Safe commit log: works even for first commit
+          # Safe commit log (works even for first commit)
           git log --pretty=format:"- %s (%an)" $env:TAG | Out-File -FilePath release-notes.md -Append
 
-      # Step 5: Create GitHub Release
+      # Step 6: Create GitHub release
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
@@ -46,7 +51,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 6: Upload release notes
+      # Step 7: Upload release notes
       - name: Upload release notes
         uses: softprops/action-gh-release@v1
         with:
