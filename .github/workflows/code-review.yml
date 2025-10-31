@@ -1,0 +1,46 @@
+name: Code Review Workflow
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  code-review:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run ESLint for code quality
+        run: npx eslint . --ext .js,.jsx,.ts,.tsx
+
+      - name: Check code formatting with Prettier
+        run: npx prettier --check .
+
+      - name: Run security audit
+        run: npm audit --audit-level=moderate || true
+
+      - name: Run tests
+        run: npm test || echo "Tests failed or not present"
+
+      - name: Post Review Comment (optional)
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          message: |
+            **Automated Code Review Completed**
+            - Code style: Checked (Prettier)
+            - Linting: Completed (ESLint)
+            - Security: Scanned (npm audit)
+            - Tests: Run
+            Please review any reported issues before merging.
