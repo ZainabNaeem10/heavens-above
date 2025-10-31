@@ -1,0 +1,69 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'  # runs every Monday at 06:00 UTC
+  workflow_dispatch:      # allow manual trigger
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  dependency-updates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Check outdated dependencies
+        run: npm outdated || true
+
+      - name: Update dependencies
+        run: |
+          npm update
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b dependency-updates-$(date +%Y%m%d%H%M%S)
+          git add package.json package-lock.json
+          git commit -m "Automated dependency updates"
+          git push origin HEAD
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: "Automated Dependency Updates"
+          body: |
+            This PR updates project dependencies to their latest compatible versions.
+            Please review and test before merging.
+          branch: auto-dependency-updates
+
+  test-updated-deps:
+    needs: dependency-updates
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install updated dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
