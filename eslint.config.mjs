@@ -2,13 +2,14 @@ import js from "@eslint/js";
 
 export default [
   js.configs.recommended,
+
+  // Default: CommonJS / script mode for most files
   {
-    // General settings for your source files
     files: ["**/*.js"],
+    ignores: ["scripts/**", "**/*.test.js", "**/__tests__/**"], // use ignores instead of excludedFiles
     languageOptions: {
-      sourceType: "module",
       ecmaVersion: 2021,
-      sourceType: "commonjs",        // important for require/module.exports
+      sourceType: "script",
       globals: {
         require: "readonly",
         module: "readonly",
@@ -20,16 +21,36 @@ export default [
       }
     },
     rules: {
-      // keep helpful rules but relax things that cause noise
       "no-undef": "error",
       "no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
-      "no-console": "off"   // allow console in server-side code; set to "warn" if you prefer
+      "no-console": "off"
     }
   },
+
+  // Files in scripts/ should be parsed as ES modules
+   // Files in scripts/ should be parsed as ES modules
   {
-    // Apply test globals & slightly different rules for test files
-    files: ["**/*.test.js", "**/__tests__/**/*.js"],
+    files: ["scripts/**"],
     languageOptions: {
+      ecmaVersion: 2021,
+      sourceType: "module",
+      globals: {
+        console: "readonly",
+        process: "readonly"
+      }
+    },
+    rules: {
+      "no-undef": "error"
+    }
+  },
+
+
+  // Test files: provide Jest globals
+  {
+    files: ["**/*.test.js", "**/__tests__/**"],
+    languageOptions: {
+      ecmaVersion: 2021,
+      sourceType: "script",
       globals: {
         jest: "readonly",
         describe: "readonly",
@@ -41,8 +62,7 @@ export default [
       }
     },
     rules: {
-      "no-undef": "off" // jest globals provided above
+      "no-undef": "off"
     }
   }
 ];
-
