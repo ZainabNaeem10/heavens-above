@@ -1,0 +1,52 @@
+name: Generate Release Notes
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release-notes:
+    runs-on: windows-latest
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Node.js (for .js projects)
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'  # Use your preferred Node version
+
+      # Step 3: Get tag name
+      - name: Get tag
+        id: tag
+        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $env:GITHUB_ENV
+
+      # Step 4: Generate simple release notes
+      - name: Generate release notes
+        id: notes
+        run: |
+          echo ## Release $env:TAG > release-notes.md
+          echo. >> release-notes.md
+          echo Released on: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss") UTC >> release-notes.md
+          echo. >> release-notes.md
+          echo Changes: >> release-notes.md
+          git log --pretty=format:"- %s (%an)" $env:TAG^..$env:TAG >> release-notes.md
+
+      # Step 5: Create GitHub Release
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.TAG }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Step 6: Upload release notes
+      - name: Upload release notes
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release-notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
