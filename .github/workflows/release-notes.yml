@@ -36,6 +36,9 @@ jobs:
          "Changes:" | Out-File -FilePath release-notes.md -Append
          git log --pretty=format:"- %s (%an)" $env:TAG^..$env:TAG | Out-File -FilePath release-notes.md -Append
 
+      # Safe commit log for GitHub Actions (works even for first commit)
+        git log --pretty=format:"- %s (%an)" $env:TAG | Out-File -FilePath release-notes.md -Append
+
 
       # Step 5: Create GitHub Release
       - name: Create GitHub Release
