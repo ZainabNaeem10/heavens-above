@@ -34,8 +34,9 @@ jobs:
             "No scheduled-tasks script found. Create scripts/scheduled-tasks.js to perform tasks." | Out-File -FilePath backup-log.txt -Encoding utf8
           }
 
-      - name: Upload backup log
+      - name: Upload backup artifact (if generated)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: daily-maintenance-log
-          path: backup-log.txt
+         name: daily-backup
+         path: backups || true
