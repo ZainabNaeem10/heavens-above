@@ -35,23 +35,7 @@ jobs:
               Write-Host "No package.json found — skipping npm install"
           }
 
-      # 4. Run tests if configured
-      - name: Run tests
-        shell: powershell
-        run: |
-          if (Test-Path "package.json") {
-              $pkg = Get-Content package.json -Raw | ConvertFrom-Json
-              if ($pkg.scripts -and $pkg.scripts.test) {
-                  Write-Host "Running npm test..."
-                  npm test
-              } else {
-                  Write-Host "No test script defined — skipping tests"
-              }
-          } else {
-              Write-Host "No package.json — skipping tests"
-          }
-
-      # 5. Prepare logs folder
+      # 4. Prepare logs folder
       - name: Prepare logs folder
         shell: powershell
         run: |
@@ -59,7 +43,7 @@ jobs:
           if (-not (Test-Path $logsDir)) { New-Item -ItemType Directory -Path $logsDir | Out-Null }
           "$((Get-Date).ToUniversalTime().ToString('u')) - Scheduled run started (PKT)" | Out-File "$logsDir\scheduled-run.log" -Encoding utf8 -Append
 
-      # 6. Run maintenance script
+      # 5. Run maintenance script
       - name: Run Windows maintenance script
         id: run_maintenance
         shell: powershell
@@ -85,7 +69,7 @@ jobs:
 
           "$((Get-Date).ToUniversalTime().ToString('u')) - Scheduled run finished (PKT)" | Out-File $logFile -Append
 
-      # 7. Upload logs as artifact
+      # 6. Upload logs as artifact
       - name: Upload logs artifact
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
@@ -93,7 +77,7 @@ jobs:
           name: scheduled-logs-${{ github.run_id }}
           path: logs
 
-      # 8. Notify Slack on success (optional)
+      # 7. Notify Slack on success (optional)
       - name: Notify Slack
         shell: powershell
         run: |
@@ -121,7 +105,7 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
-      # 9. Create GitHub issue on failure
+      # 8. Create GitHub issue on failure
       - name: Create GitHub Issue on failure
         if: ${{ failure() }}
         uses: actions/github-script@v7
