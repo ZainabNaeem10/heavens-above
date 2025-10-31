@@ -39,8 +39,6 @@ jobs:
         shell: powershell
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
         run: |
           Write-Host "Checking secrets..."
           if (-not $env:VERCEL_TOKEN) {
@@ -48,16 +46,12 @@ jobs:
             exit 1
           }
           Write-Host ("VERCEL_TOKEN length: {0}" -f $env:VERCEL_TOKEN.Length)
-          Write-Host ("VERCEL_PROJECT_ID: {0}" -f $env:VERCEL_PROJECT_ID)
-          Write-Host ("VERCEL_ORG_ID: {0}" -f $env:VERCEL_ORG_ID)
 
       #  Deploy to Vercel
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25.2.0
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           vercel-args: '--prod'
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
