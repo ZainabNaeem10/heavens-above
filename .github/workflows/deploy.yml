@@ -1,50 +1,52 @@
-name: Build-Test-Deploy to Vercel
+name: Build-Test-Deploy to Vercel (Windows)
 
 on:
   push:
-    branches: [main]   # triggers on push to main branch
+    branches: [main]
 
 jobs:
   build-test-deploy:
     runs-on: windows-latest
 
     steps:
-      # Checkout repository
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 22
 
-      # Install dependencies
       - name: Install dependencies
         run: npm install
         shell: powershell
 
-      # Run tests
       - name: Run tests
         run: npm test
         shell: powershell
 
-      #  Build project
       - name: Build project
         run: npm run build
         shell: powershell
 
-      # Debug Vercel secrets
+      # Debug secrets using PowerShell (Windows-safe)
       - name: Debug Vercel secrets
+        shell: powershell
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
         run: |
-          echo "Checking secrets..."
-          echo "VERCEL_TOKEN length: ${#{{ secrets.VERCEL_TOKEN }}}"
-          echo "VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}"
-          echo "VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}"
-        shell: bash
+          Write-Host "Checking secrets..."
+          if (-not $env:VERCEL_TOKEN) {
+            Write-Host "VERCEL_TOKEN is not set!"
+            exit 1
+          }
+          Write-Host ("VERCEL_TOKEN length: {0}" -f $env:VERCEL_TOKEN.Length)
+          Write-Host ("VERCEL_PROJECT_ID: {0}" -f $env:VERCEL_PROJECT_ID)
+          Write-Host ("VERCEL_ORG_ID: {0}" -f $env:VERCEL_ORG_ID)
 
-      #  Deploy to Vercel
-      - name: Deploy to Vercel
+      - name: Deploy to Vercel (action)
         uses: amondnet/vercel-action@v25.2.0
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
