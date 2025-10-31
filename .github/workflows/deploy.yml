@@ -2,62 +2,64 @@ name: Build-Test-Deploy to Vercel
 
 on:
   push:
-    branches: [main]   # triggers on push to main branch
+    branches: [main]                 # push to main -> production deploy
+  pull_request:
+    types: [opened, synchronize, reopened]  # PRs -> preview deploys
 
 jobs:
   build-test-deploy:
     runs-on: windows-latest
+    timeout-minutes: 30
 
     steps:
-      # Checkout repository
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 22
 
-      # Install dependencies
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         shell: powershell
 
-      # Run tests
       - name: Run tests
         run: npm test
         shell: powershell
 
-      #  Build project
       - name: Build project
         run: npm run build
         shell: powershell
 
-      # Debug Vercel secrets
-      - name: Debug Vercel secrets
+      - name: Install Vercel CLI
+        run: npm install -g vercel@25.1.0
+        shell: powershell
+
+      - name: Verify Vercel token
         shell: powershell
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
         run: |
-          Write-Host "Checking secrets..."
-          if (-not $env:VERCEL_TOKEN) {
-            Write-Host "VERCEL_TOKEN is not set!"
-            exit 1
-          }
-          Write-Host ("VERCEL_TOKEN length: {0}" -f $env:VERCEL_TOKEN.Length)
-          Write-Host ("VERCEL_PROJECT_ID: {0}" -f $env:VERCEL_PROJECT_ID)
-          Write-Host ("VERCEL_ORG_ID: {0}" -f $env:VERCEL_ORG_ID)
+          Write-Host "vercel whoami (verifies token)..."
+          vercel whoami --token $env:VERCEL_TOKEN
 
-      #  Deploy to Vercel
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25.2.0
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: '--prod'
+      # Preview deploy for pull requests
+      - name: Deploy Preview to Vercel (Pull Request)
+        if: github.event_name == 'pull_request'
+        shell: powershell
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          Write-Host "Deploying preview for PR $($env:GITHUB_HEAD_REF) (ref: $env:GITHUB_REF)..."
+          vercel --token $env:VERCEL_TOKEN --previews --confirm
+
+      # Production deploy for pushes to main
+      - name: Deploy to Vercel (Production)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: powershell
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          Write-Host "Deploying production (main branch)..."
+          vercel --prod --token $env:VERCEL_TOKEN --confirm
