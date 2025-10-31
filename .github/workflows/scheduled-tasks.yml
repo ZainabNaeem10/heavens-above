@@ -1,9 +1,5 @@
 name: Scheduled Tasks (Windows) - PKT timezone
 
-# Triggers:
-# - Daily at 02:00 PKT (Pakistan, UTC+5)  => UTC: previous day 21:00 -> cron '0 21 * * *'
-# - Weekly on Sunday at 04:00 PKT         => UTC: Saturday 23:00        -> cron '0 23 * * 6'
-# - Manual run supported via workflow_dispatch
 on:
   schedule:
     - cron: '0 21 * * *'   # daily at 02:00 PKT
@@ -15,17 +11,13 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 90
     env:
-      # Optional: expose commonly used secrets here
-      # BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
-      # DB_CONN: ${{ secrets.DB_CONN }}
-      TZ: 'Asia/Karachi'   # informational only; GitHub cron is UTC
+      TZ: 'Asia/Karachi'
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Node.js (optional)
-        if: always()
         uses: actions/setup-node@v3
         with:
           node-version: '22'
@@ -44,7 +36,6 @@ jobs:
         shell: powershell
         run: |
           if (Test-Path -Path "package.json") {
-            # run tests if script exists in package.json
             $pkg = Get-Content package.json -Raw | ConvertFrom-Json
             if ($pkg.scripts -and $pkg.scripts.test) {
               Write-Host "Running npm test..."
@@ -96,31 +87,35 @@ jobs:
           path: logs
 
       - name: Notify Slack on success (optional)
-        if: ${{ success() && secrets.SLACK_WEBHOOK }}
+        if: success()
         shell: powershell
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
         run: |
-          $repo = "${{ github.repository }}"
-          $runNum = "${{ github.run_number }}"
-          $runUrl = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          $payload = @{
-            text = ":white_check_mark: Scheduled job completed"
-            attachments = @(
-              @{
-                color = "good"
-                fields = @(
-                  @{ title = "Repository"; value = $repo; short = $true },
-                  @{ title = "Run"; value = $runNum; short = $true },
-                  @{ title = "Run URL"; value = $runUrl; short = $false }
-                )
-              }
-            )
-          } | ConvertTo-Json -Depth 6
-          Invoke-RestMethod -Uri $env:SLACK_WEBHOOK -Method Post -ContentType 'application/json' -Body $payload
+          if ($env:SLACK_WEBHOOK) {
+            $repo = "${{ github.repository }}"
+            $runNum = "${{ github.run_number }}"
+            $runUrl = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            $payload = @{
+              text = ":white_check_mark: Scheduled job completed"
+              attachments = @(
+                @{
+                  color = "good"
+                  fields = @(
+                    @{ title = "Repository"; value = $repo; short = $true },
+                    @{ title = "Run"; value = $runNum; short = $true },
+                    @{ title = "Run URL"; value = $runUrl; short = $false }
+                  )
+                }
+              )
+            } | ConvertTo-Json -Depth 6
+            Invoke-RestMethod -Uri $env:SLACK_WEBHOOK -Method Post -ContentType 'application/json' -Body $payload
+          } else {
+            Write-Host "SLACK_WEBHOOK not set — skipping notification"
+          }
 
       - name: Create GitHub Issue on failure
-        if: ${{ failure() }}
+        if: failure()
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
