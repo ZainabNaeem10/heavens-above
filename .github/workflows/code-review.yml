@@ -1,7 +1,7 @@
 name: Code Review Workflow
 
 on:
-  pull_request:
+  push:
     branches:
       - main
 
@@ -33,14 +33,5 @@ jobs:
       - name: Run tests
         run: npm test || echo "Tests failed or not present"
 
-      - name: Post Review Comment (optional)
-        if: ${{ github.event_name == 'pull_request' }}
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          message: |
-            **Automated Code Review Completed**
-            - Code style: Checked (Prettier)
-            - Linting: Completed (ESLint)
-            - Security: Scanned (npm audit)
-            - Tests: Run
-            Please review any reported issues before merging.
+      - name: Log success message
+        run: echo " Automated Code Review completed successfully on push to main!"
