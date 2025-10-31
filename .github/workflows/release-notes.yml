@@ -27,13 +27,15 @@ jobs:
       # Step 4: Generate simple release notes
       - name: Generate release notes
         id: notes
+        shell: pwsh
         run: |
-          echo ## Release $env:TAG > release-notes.md
-          echo. >> release-notes.md
-          echo Released on: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss") UTC >> release-notes.md
-          echo. >> release-notes.md
-          echo Changes: >> release-notes.md
-          git log --pretty=format:"- %s (%an)" $env:TAG^..$env:TAG >> release-notes.md
+         "## Release $env:TAG" | Out-File -FilePath release-notes.md -Encoding utf8
+         "" | Out-File -FilePath release-notes.md -Append
+         "Released on: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') UTC" | Out-File -FilePath release-notes.md -Append
+         "" | Out-File -FilePath release-notes.md -Append
+         "Changes:" | Out-File -FilePath release-notes.md -Append
+         git log --pretty=format:"- %s (%an)" $env:TAG^..$env:TAG | Out-File -FilePath release-notes.md -Append
+
 
       # Step 5: Create GitHub Release
       - name: Create GitHub Release
