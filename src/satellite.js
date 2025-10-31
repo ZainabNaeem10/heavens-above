@@ -7,6 +7,9 @@ const property = ["url", "date", "brightness", "events", "passType", "image", "s
 const events = ["rise", "reachAltitude10deg", "highestPoint", "dropBelowAltitude10deg", "set", "exitShadow", "enterShadow"];
 const attribute = ["time", "altitude", "azimuth", "distance", "brightness", "sunAltitude"];
 
+let options;
+let current;
+
 const compare = [
 	function(a, b) {
 		return a[property[6]][1] >= b[property[6]][1] ? 1 : -1; //星等（越小越好）
